@@ -24,6 +24,7 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.event import async_track_state_change_event
 
 # Import the logger and datetime modules
+import time
 import logging
 from datetime import datetime, timedelta, timezone
 import asyncio
@@ -222,7 +223,10 @@ class BlindsCover(CoverEntity, RestoreEntity):
     # Return the current position of the cover
     @property
     def current_cover_position(self) -> int | None:
-        return int(self.travel_calc.current_position()) if self.travel_calc.current_position() is not None else None
+        position = self.travel_calc.current_position()
+        if position is None:
+            return None
+        return 1 if 0 < position < 1 else 99 if 99 < position < 100 else int(position)
     
     # Return the current tilt of the cover
     @property
@@ -408,8 +412,8 @@ class BlindsCover(CoverEntity, RestoreEntity):
         else:
             if self.position_reached():
                 if self.position_reach_time is None:
-                    self.position_reach_time = current_time
-                elif current_time - self.position_reach_time <= self._delay_stop_final_position:
+                    self.position_reach_time = time.time()
+                elif time.time() - self.position_reach_time <= self._delay_stop_final_position:
                     pass
                 else:
                     self.position_reach_time = None
