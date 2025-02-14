@@ -32,6 +32,10 @@ class BlindsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Required("time_down"): vol.All(vol.Coerce(float), vol.Range(min=0)),
                     vol.Required("tilt_open"): vol.All(vol.Coerce(float), vol.Range(min=0)),
                     vol.Required("tilt_closed"): vol.All(vol.Coerce(float), vol.Range(min=0)),
+                    vol.Required("time_up_nonlinear", default=0): vol.All(vol.Coerce(float), vol.Range(min=0)),
+                    vol.Required("time_down_nonlinear", default=0): vol.All(vol.Coerce(float), vol.Range(min=0)),
+                    vol.Required("percent_up_nonlinear", default=0): vol.All(vol.Coerce(float), vol.Range(min=0,max=10)),
+                    vol.Required("percent_down_nonlinear", default=0): vol.All(vol.Coerce(float), vol.Range(min=0,max=10)),
 
                     vol.Required("timed_control_down", default=False): bool,
                     vol.Optional("time_to_roll_down", default = "12:00"): vol.All(vol.Coerce(str)),
@@ -60,7 +64,8 @@ class BlindsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Optional("netamo_rain", default=40): vol.All(vol.Coerce(float)),
 
 
-                    vol.Required("send_stop_at_end", default=True): bool
+                    vol.Required("send_stop_at_end", default=True): bool,
+                    vol.Required("delay_stop_final_position", default=0): vol.All(vol.Coerce(float), vol.Range(min=0, max=5))
                 }
             ),
             errors=errors,
@@ -97,6 +102,10 @@ class BlindsOptionsFlow(config_entries.OptionsFlow):
                     vol.Required("time_down", default=self.config_entry.data.get("time_down", 0.0)): vol.All(vol.Coerce(float), vol.Range(min=0)),
                     vol.Required("tilt_open", default=self.config_entry.data.get("tilt_open", 0.0)): vol.All(vol.Coerce(float), vol.Range(min=0)),
                     vol.Required("tilt_closed", default=self.config_entry.data.get("tilt_closed", 0.0)): vol.All(vol.Coerce(float), vol.Range(min=0)),
+                    vol.Required("time_up_nonlinear", default=self.config_entry.data.get("time_up_nonlinear", 0.0)): vol.All(vol.Coerce(float), vol.Range(min=0)),
+                    vol.Required("time_down_nonlinear", default=self.config_entry.data.get("time_down_nonlinear", 0.0)): vol.All(vol.Coerce(float), vol.Range(min=0)),
+                    vol.Required("percent_up_nonlinear", default=self.config_entry.data.get("percent_up_nonlinear", 0.0)): vol.All(vol.Coerce(float), vol.Range(min=0, max=10)),
+                    vol.Required("percent_down_nonlinear", default=self.config_entry.data.get("percent_down_nonlinear", 0.0)): vol.All(vol.Coerce(float), vol.Range(min=0, max=10)),
                     
                     vol.Required("timed_control_down", default=self.config_entry.data.get("timed_control_down")): bool,
                     vol.Optional("time_to_roll_down", default=self.config_entry.data.get("time_to_roll_down", "")) : vol.All(vol.Coerce(str)),
@@ -125,6 +134,7 @@ class BlindsOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional("netamo_rain", default=self.config_entry.data.get("netamo_rain")): vol.All(vol.Coerce(float)),
 
                     vol.Required("send_stop_at_end", default=self.config_entry.data.get("send_stop_at_end")): bool,
+                    vol.Required("delay_stop_final_position", default=self.config_entry.data.get("delay_stop_final_position", 0.0)): vol.All(vol.Coerce(float), vol.Range(min=0, max=10)),
                 }
             ),
         )

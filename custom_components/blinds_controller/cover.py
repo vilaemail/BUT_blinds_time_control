@@ -16,12 +16,12 @@ from homeassistant.const import (
     SERVICE_STOP_COVER,
 )
 from homeassistant.helpers import entity_platform
-from homeassistant.core import callback
+from homeassistant.core import Event, EventStateChangedData, callback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.helpers.event import async_track_state_change
+from homeassistant.helpers.event import async_track_state_change_event
 
 # Import the logger and datetime modules
 import logging
@@ -77,6 +77,11 @@ class BlindsCover(CoverEntity, RestoreEntity):
         self._travel_time_up = entry.data["time_up"]
         self._travel_tilt_closed = entry.data["tilt_closed"]
         self._travel_tilt_open = entry.data["tilt_open"]
+        self._travel_time_down_nonlinear = entry.data["time_down_nonlinear"]
+        self._travel_time_up_nonlinear = entry.data["time_up_nonlinear"]
+        self._travel_percent_down_nonlinear = entry.data["percent_down_nonlinear"]
+        self._travel_percent_up_nonlinear = entry.data["percent_up_nonlinear"]
+        
         self._up_switch_entity_id = entry.data["entity_up"]
         self._down_switch_entity_id = entry.data["entity_down"]
 
@@ -104,6 +109,7 @@ class BlindsCover(CoverEntity, RestoreEntity):
             self._gust_speed = self.hass.states.get(self._netamo_gust_entity).state
         self._netamo_gust = entry.data["netamo_gust"]
         self._send_stop_at_end = entry.data["send_stop_at_end"]
+        self._delay_stop_final_position = entry.data["delay_stop_final_position"]
         self._netamo_rain_entity = entry.data["netamo_rain_entity"]
         if self._netamo_rain_entity is not None:
             self._netamo_cur_rain = self.hass.states.get(self._netamo_rain_entity).state
@@ -129,6 +135,10 @@ class BlindsCover(CoverEntity, RestoreEntity):
         self.travel_calc = TravelCalculator(
             self._travel_time_down,
             self._travel_time_up,
+            self._travel_time_down_nonlinear,
+            self._travel_time_up_nonlinear,
+            self._travel_percent_down_nonlinear,
+            self._travel_percent_up_nonlinear,
         )
         if self.has_tilt_support():
             self.tilt_calc = TravelCalculator(
@@ -142,7 +152,10 @@ class BlindsCover(CoverEntity, RestoreEntity):
         self._switch_open_state = "off"
         self._night_lights_state = "off"
 
-    async def sun_state_changed(self, entity_id, old_state, new_state):
+    async def sun_state_changed(self, event: Event[EventStateChangedData]):
+        entity_id = event.data["entity_id"]
+        old_state = event.data["old_state"]
+        new_state = event.data["new_state"]
         if new_state is not None:
             if entity_id == "sensor.sun_next_dawn":
                 self._sun_next_sunrise = new_state.state
@@ -177,6 +190,10 @@ class BlindsCover(CoverEntity, RestoreEntity):
             "time_down": self._travel_time_down,
             "tilt_open": self._travel_tilt_open,
             "tilt_closed": self._travel_tilt_closed,
+            "time_up_nonlinear": self._travel_time_up_nonlinear,
+            "time_down_nonlinear": self._travel_time_down_nonlinear,
+            "percent_up_nonlinear": self._travel_percent_up_nonlinear,
+            "percent_down_nonlinear": self._travel_percent_down_nonlinear,
         }
     
     # Adds the features of the cover entity
@@ -205,7 +222,7 @@ class BlindsCover(CoverEntity, RestoreEntity):
     # Return the current position of the cover
     @property
     def current_cover_position(self) -> int | None:
-        return self.travel_calc.current_position()
+        return int(self.travel_calc.current_position()) if self.travel_calc.current_position() is not None else None
     
     # Return the current tilt of the cover
     @property
@@ -267,6 +284,8 @@ class BlindsCover(CoverEntity, RestoreEntity):
     # This function is called to set the cover to start closing
     async def async_close_cover(self, **kwargs):
         if self.travel_calc.current_position() > 0:
+            await self._async_handle_command(SERVICE_STOP_COVER)
+            await asyncio.sleep(1)
             self.travel_calc.start_travel_down()
             self.start_auto_updater()
             self.update_tilt_before_travel(SERVICE_CLOSE_COVER)
@@ -275,6 +294,8 @@ class BlindsCover(CoverEntity, RestoreEntity):
     # This function is called to set the cover to start opening
     async def async_open_cover(self, **kwargs):
         if self.travel_calc.current_position() < 100:
+            await self._async_handle_command(SERVICE_STOP_COVER)
+            await asyncio.sleep(1)
             self.travel_calc.start_travel_up()
             self.start_auto_updater()
             self.update_tilt_before_travel(SERVICE_OPEN_COVER)
@@ -283,6 +304,8 @@ class BlindsCover(CoverEntity, RestoreEntity):
     # This function is called to move the cover tilting to close position
     async def async_close_cover_tilt(self, **kwargs):
         if self.tilt_calc.current_position() > 0:
+            await self._async_handle_command(SERVICE_STOP_COVER)
+            await asyncio.sleep(1)
             self.tilt_calc.start_travel_down()
             self.start_auto_updater()
             await self._async_handle_command(SERVICE_CLOSE_COVER)
@@ -290,6 +313,8 @@ class BlindsCover(CoverEntity, RestoreEntity):
     # This function is called to stop the cover tilting to open position
     async def async_open_cover_tilt(self, **kwargs):
         if self.tilt_calc.current_position() < 100:
+            await self._async_handle_command(SERVICE_STOP_COVER)
+            await asyncio.sleep(1)
             self.tilt_calc.start_travel_up()
             self.start_auto_updater()
             await self._async_handle_command(SERVICE_OPEN_COVER)
@@ -313,6 +338,8 @@ class BlindsCover(CoverEntity, RestoreEntity):
             # If the desired position is greater than the current position, open the cover
             command = SERVICE_OPEN_COVER
         if command is not None:
+            await self._async_handle_command(SERVICE_STOP_COVER)
+            await asyncio.sleep(1)
             self.start_auto_updater()
             # Start moving the cover to the desired position
             self.travel_calc.start_travel(position)
@@ -337,6 +364,8 @@ class BlindsCover(CoverEntity, RestoreEntity):
             command = SERVICE_OPEN_COVER
 
         if command is not None:
+            await self._async_handle_command(SERVICE_STOP_COVER)
+            await asyncio.sleep(1)
             self.start_auto_updater()
             # Start moving the tilt to the desired position
             self.tilt_calc.start_travel(position)
@@ -371,9 +400,23 @@ class BlindsCover(CoverEntity, RestoreEntity):
     @callback
     def auto_updater_hook(self, now):
         self.async_schedule_update_ha_state()
-        if self.position_reached():
-            self.stop_auto_updater()
-        self.hass.async_create_task(self.auto_stop_if_necessary())
+        if self._target_position != 100 and self._target_position != 0:
+            self.position_reach_time = None
+            if self.position_reached():
+                self.stop_auto_updater()
+            self.hass.async_create_task(self.auto_stop_if_necessary())
+        else:
+            if self.position_reached():
+                if self.position_reach_time is None:
+                    self.position_reach_time = current_time
+                elif current_time - self.position_reach_time <= self._delay_stop_final_position:
+                    pass
+                else:
+                    self.position_reach_time = None
+                    self.stop_auto_updater()
+                    self.hass.async_create_task(self.auto_stop_if_necessary())
+            else:
+                self.position_reach_time = None
 
     async def add_ons(self, now):
         # Adjust the current time by adding one hour
@@ -609,11 +652,11 @@ class BlindsCover(CoverEntity, RestoreEntity):
     async def async_added_to_hass(self):
         self.hass.bus.async_listen("state_changed", self._handle_state_changed)
         # Set up periodic time update
-        self.hass.helpers.event.async_track_time_interval(self.add_ons, timedelta(minutes=1))
-        async_track_state_change(
+        async_track_time_interval(self.hass, self.add_ons, timedelta(minutes=1))
+        async_track_state_change_event(
             self.hass, "sensor.sun_next_dawn", self.sun_state_changed
         )
-        async_track_state_change(
+        async_track_state_change_event(
             self.hass, "sensor.sun_next_dusk", self.sun_state_changed
         )
 
