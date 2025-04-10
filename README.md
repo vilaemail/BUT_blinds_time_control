@@ -2,6 +2,15 @@
 
 Upgrade your Home Assistant with this custom blinds control integration. It's designed to effortlessly manage your time-based blinds, syncing with your chosen entities for raising and lowering. Plus, it remembers your settings after restarts and supports tilting.
 
+## Acknowledgment
+
+This is a fork of [Home Assistant Blinds Control Integration]() done by []().
+Fork was based on and inspired by this insightful [community post](https://community.home-assistant.io/t/custom-component-cover-time-based/187654)
+
+## Fork purpose
+
+Focusing project on providing cover entity with only cover related functionality (exposing % open and commands). Additional features of original are removed and can be implemented separately by leveraging exposed cover entity.
+
 ## How to Install
 
 Getting started is a piece of cake!
@@ -18,31 +27,11 @@ Name your blinds, select the controlling entities, specify roll-up and roll-down
 
 Once everything is set up, the calculations will indicate that the blinds are fully closed. Therefore, after configuring, <span style="color:red">wait</span> before submitting, roll your blinds down, and then submit.
 
-
 You can also tweak existing configurations to suit your preferences (just reload the edited entries).
 
-## Automations
-During the setup process, you have the option to configure various automated tasks. These features are currently in an <span style="color:red">EXPERIMENTAL</span> phase and are being developed as part of my bachelor's thesis, so please refrain from extensive experimentation with this automation.
+## Reporting issue and/or Contributing
 
-Examples include scheduling specific times for actions such as raising or lowering blinds, automating the opening and closing of blinds based on sunrise and sunset times, or automatically lowering blinds when a particular entity is activated during the night. Additionally, there are weather protection measures available, such as responding to strong winds using the [WMO Code](https://www.nodc.noaa.gov/archive/arc0021/0002199/1.1/data/0-data/HTML/WMO-CODE/WMO4677.HTM) and utilizing the [Open Meteo API](https://open-meteo.com/) or perhaps you would like to use [Netatmo](https://open-meteo.com/), that also works.  For those utilizing interlock relays, there's the possibility of triggering a stop command at the end of travel.
-
-## Need Help?
-
-Got a snag? Visit [GitHub issues page](https://github.com/MatthewOnTour/BUT_blinds_time_control/issues) to report any issues or seek assistance or head over to documentation [GitHub documentation](https://github.com/MatthewOnTour/BUT_blinds_time_control/blob/main/README.md). 
-
-Alternatively, [visit this page](https://community.home-assistant.io/t/home-assistant-blinds-control-custom-integration/718612) to check if you can't find a solution to your problem there.
-
-
-## Acknowledgment
-
-Work was based on and inspired by this insightful [community post](https://community.home-assistant.io/t/custom-component-cover-time-based/187654)
-
-## Support
-
-You can support my work here: 
-
-<a href="https://www.buymeacoffee.com/MatthewOnTour"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" width="200" /></a>
-
+I have forked project to use for my own needs, and don't have significant amount of time to invest in this project. You may create [issues](https://github.com/vilaemail/BUT_blinds_time_control/issues), but I am not sure when and if I could address them.
 
 ## License
 

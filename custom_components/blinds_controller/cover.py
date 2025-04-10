@@ -86,38 +86,8 @@ class BlindsCover(CoverEntity, RestoreEntity):
         self._up_switch_entity_id = entry.data["entity_up"]
         self._down_switch_entity_id = entry.data["entity_down"]
 
-        # Add ons
-        self._timed_control_down = entry.data["timed_control_down"]
-        self._time_to_roll_up = entry.data["time_to_roll_up"]
-        self._timed_control_up = entry.data["timed_control_up"]
-        self._time_to_roll_down = entry.data["time_to_roll_down"]
-        self._delay_control = entry.data["delay_control"]
-        self._delay_sunrise = entry.data["delay_sunrise"]
-        self._delay_sunset = entry.data["delay_sunset"]
-        self._night_lights = entry.data["night_lights"]
-        self._entity_night_lights = entry.data["entity_night_lights"]
-        self._tilting_day = entry.data["tilting_day"]
-        self._protect_the_blinds = entry.data["protect_the_blinds"]
-        self._set_wind_speed = entry.data["wind_speed"]
-        self._wmo_code = entry.data["wmo_code"]
-        self._netamo_enable = entry.data["netamo_enable"]
-        self._netamo_speed_entity = entry.data["netamo_speed_entity"]
-        if self._netamo_speed_entity is not None:
-            self._wind_speed = self.hass.states.get(self._netamo_speed_entity).state
-        self._netamo_speed = entry.data["netamo_speed"]
-        self._netamo_gust_entity = entry.data["netamo_gust_entity"]
-        if self._netamo_gust_entity is not None:
-            self._gust_speed = self.hass.states.get(self._netamo_gust_entity).state
-        self._netamo_gust = entry.data["netamo_gust"]
         self._send_stop_at_end = entry.data["send_stop_at_end"]
         self._delay_stop_final_position = entry.data["delay_stop_final_position"]
-        self._netamo_rain_entity = entry.data["netamo_rain_entity"]
-        if self._netamo_rain_entity is not None:
-            self._netamo_cur_rain = self.hass.states.get(self._netamo_rain_entity).state
-        self._netamo_rain = entry.data["netamo_rain"]
-
-        self._sun_next_sunrise = self.hass.states.get("sensor.sun_next_dawn").state
-        self._sun_next_sunset = self.hass.states.get("sensor.sun_next_dusk").state
 
         self._target_position = 0
         self._target_tilt_position = 0
@@ -153,18 +123,6 @@ class BlindsCover(CoverEntity, RestoreEntity):
         self._switch_open_state = "off"
         self._night_lights_state = "off"
 
-    async def sun_state_changed(self, event: Event[EventStateChangedData]):
-        entity_id = event.data["entity_id"]
-        old_state = event.data["old_state"]
-        new_state = event.data["new_state"]
-        if new_state is not None:
-            if entity_id == "sensor.sun_next_dawn":
-                self._sun_next_sunrise = new_state.state
-            elif entity_id == "sensor.sun_next_dusk":
-                self._sun_next_sunset = new_state.state
-
-
-    
     # Return the name
     @property
     def name(self):
@@ -422,148 +380,6 @@ class BlindsCover(CoverEntity, RestoreEntity):
             else:
                 self.position_reach_time = None
 
-    async def add_ons(self, now):
-        # Adjust the current time by adding one hour
-        corrected_time = now + timedelta(hours=0) # Edit the time if needed to correct the time zone
-
-        # Format the corrected time to display only HH:MM
-        formatted_time = corrected_time.strftime("%H:%M")
-
-
-        if self._timed_control_down and not self.travel_calc.is_traveling():
-            try:
-                parsed_time_to_roll_down = datetime.strptime(self._time_to_roll_down, "%H:%M")
-                formatted_time_to_roll_down = parsed_time_to_roll_down.strftime("%H:%M")  
-            except ValueError:
-                _LOGGER.error("Invalid format for timed control")
-                return
-            
-            if formatted_time_to_roll_down == formatted_time and self.travel_calc.current_position() > 0:
-                await self.async_close_cover()
-        
-        if self._timed_control_up and not self.travel_calc.is_traveling():
-            try:
-                parsed_time_to_roll_up = datetime.strptime(self._time_to_roll_up, "%H:%M")
-                formatted_time_to_roll_up = parsed_time_to_roll_up.strftime("%H:%M")
-            except ValueError:
-                _LOGGER.error("Invalid format for timed control")
-                return
-            
-            if formatted_time_to_roll_up == formatted_time and self.travel_calc.current_position() < 100:
-                await self.async_open_cover()
-
-        if self._delay_control and not self.travel_calc.is_traveling():
-            parse_time_sunset = datetime.fromisoformat(self._sun_next_sunset)
-            parse_time_sunrise = datetime.fromisoformat(self._sun_next_sunrise)
-
-            formatted_time_sunset = parse_time_sunset.strftime("%H:%M")
-            formatted_time_sunrise = parse_time_sunrise.strftime("%H:%M")
-
-            parsed_offset_sunset = datetime.strptime(formatted_time_sunset, "%H:%M")
-            parsed_offset_sunrise = datetime.strptime(formatted_time_sunrise, "%H:%M")
-
-            offset_time_sunset = parsed_offset_sunset + timedelta(minutes=self._delay_sunset)
-            offset_time_sunrise = parsed_offset_sunrise + timedelta(minutes=self._delay_sunrise)
-
-            formatted_offset_sunset = offset_time_sunset.strftime("%H:%M")
-            formatted_offset_sunrise = offset_time_sunrise.strftime("%H:%M")
-
-            if formatted_offset_sunset == formatted_time and self.travel_calc.current_position() > 0:
-                await self.async_close_cover()
-
-            if formatted_offset_sunrise == formatted_time and self.travel_calc.current_position() < 100:
-                await self.async_open_cover()
-
-        if self._night_lights and not self.travel_calc.is_traveling():
-            parse_time_sunset = datetime.fromisoformat(self._sun_next_sunset)
-            parse_time_sunrise = datetime.fromisoformat(self._sun_next_sunrise)
-
-            formatted_time_sunset = parse_time_sunset.strftime("%H:%M")
-            formatted_time_sunrise = parse_time_sunrise.strftime("%H:%M")
-
-            if (formatted_time > formatted_time_sunset or formatted_time < formatted_time_sunrise) and self._night_lights_state == "on" and self.travel_calc.current_position() > 0:
-                await self.async_close_cover()
-        
-        if self.has_tilt_support():
-            self._tilt_check_counter += 1
-            if self._tilt_check_counter == 10:
-                self._tilt_check_counter = 0
-                if self._tilting_day and not self.travel_calc.is_traveling() and not self.tilt_calc.is_traveling():
-                    parse_time_sunset = datetime.fromisoformat(self._sun_next_sunset)
-                    parse_time_sunrise = datetime.fromisoformat(self._sun_next_sunrise)
-
-                    formatted_time_sunset = parse_time_sunset.strftime("%H:%M")
-                    formatted_time_sunrise = parse_time_sunrise.strftime("%H:%M")
-
-                    if not (formatted_time > formatted_time_sunset or formatted_time < formatted_time_sunrise) and self.tilt_calc.current_position() < 100:
-                        await self.async_open_cover_tilt()
-
-        if self._netamo_enable and not self.travel_calc.is_traveling():
-            _LOGGER.info("wind: %s", self._wind_speed)
-            _LOGGER.info("wind: %s", self._netamo_speed)
-            _LOGGER.info("gust: %s", self._gust_speed)
-            _LOGGER.info("gust: %s", self._netamo_gust)
-            self._wind_speed = float(self._wind_speed)
-            self._netamo_speed = float(self._netamo_speed)
-            self._gust_speed = float(self._gust_speed)
-            self._netamo_gust = float(self._netamo_gust)
-            self._netamo_cur_rain = float(self._netamo_cur_rain)
-            self._netamo_rain = float(self._netamo_rain)
-            if self._wind_speed > self._netamo_speed and self.travel_calc.current_position() < 100:
-                await self.async_open_cover()
-            elif self._gust_speed > self._netamo_gust and self.travel_calc.current_position() < 100:
-                await self.async_open_cover()
-            elif self._netamo_cur_rain > self._netamo_rain and self.travel_calc.current_position() < 100:
-                await self.async_open_cover()
-
-        _LOGGER.info("self._protect_the_blinds: %s", self._protect_the_blinds)
-        if self._protect_the_blinds and not self.travel_calc.is_traveling():
-                    self._weather_check_counter += 1
-                     # Check if the counter reaches 30
-                    if self._weather_check_counter == 30:
-                        self._weather_check_counter = 0
-                        latitude, longitude = self.get_location_coordinates(self.hass)
-                        _LOGGER.info("Latitude: %s, Longitude: %s", latitude, longitude)
-                        
-                        # Construct the API URL
-                        api_url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=wind_speed_10m&daily=weather_code"
-                        
-                        try:
-                            # Make the request asynchronously
-                            response = await self.hass.async_add_executor_job(urllib.request.urlopen, api_url)
-                            data = json.loads(response.read().decode('utf-8'))
-                            _LOGGER.info("Retrieved data: %s", data)
-                            
-                            # Extract wind speed and weather code
-                            current_data = data.get('current', {})
-                            wind_speed = current_data.get('wind_speed_10m')
-                            
-                            daily_data = data.get('daily', {})
-                            weather_code = daily_data.get('weather_code')
-                            
-                            if wind_speed > self._set_wind_speed and self.travel_calc.current_position() < 100:
-                                await self.async_open_cover()
-                                _LOGGER.info("Wind speed is too high: %s", wind_speed)
-                            today_weather_code = data.get('daily', {}).get('weather_code', [])[0]
-                            if today_weather_code > self._wmo_code and self.travel_calc.current_position() < 100:
-                                await self.async_open_cover()
-                                _LOGGER.info("Weather code indicates rain: %s", weather_code)
-                            
-                            _LOGGER.info("Wind speed: %s, Weather code: %s", wind_speed, weather_code)
-                            
-                        except Exception as e:
-                            _LOGGER.error("Error retrieving weather data: %s", e)
-
-        _LOGGER.info("Current time: %s", formatted_time)   
-                
-        
-    # This function is called to get latitude and longitude from Home Assistant configuration
-    def get_location_coordinates(self, hass):
-        # Access the latitude and longitude from Home Assistant configuration
-        latitude = hass.config.latitude
-        longitude = hass.config.longitude
-        return latitude, longitude
-
     # This function is called to check if the cover has reached its final position
     def position_reached(self):
         return self.travel_calc.position_reached() and (
@@ -591,11 +407,6 @@ class BlindsCover(CoverEntity, RestoreEntity):
         if event.data.get("new_state").state == event.data.get("old_state").state:
             return
         
-        if event.data.get("entity_id") == self._entity_night_lights:
-            if self._night_lights_state == event.data.get("new_state").state:
-                return
-            self._night_lights_state = event.data.get("new_state").state
-
         if event.data.get("entity_id") == self._down_switch_entity_id:
             if self._switch_close_state == event.data.get("new_state").state:
                 return
@@ -655,16 +466,6 @@ class BlindsCover(CoverEntity, RestoreEntity):
 
     async def async_added_to_hass(self):
         self.hass.bus.async_listen("state_changed", self._handle_state_changed)
-        # Set up periodic time update
-        async_track_time_interval(self.hass, self.add_ons, timedelta(minutes=1))
-        async_track_state_change_event(
-            self.hass, "sensor.sun_next_dawn", self.sun_state_changed
-        )
-        async_track_state_change_event(
-            self.hass, "sensor.sun_next_dusk", self.sun_state_changed
-        )
-
-
         
         old_state = await self.async_get_last_state()
 

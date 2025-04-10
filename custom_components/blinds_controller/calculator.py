@@ -148,7 +148,7 @@ class TravelCalculator:
         if virtual_travel_time <= 0:
             return self.last_known_position
 
-        _LOGGER.info("Travel tasks %s", json.dumps([task.to_dict() for task in travel_tasks]))
+        _LOGGER.debug("Travel tasks %s", json.dumps([task.to_dict() for task in travel_tasks]))
         position_delta = 0
         for travel_task in travel_tasks:
             if virtual_travel_time >= travel_task.time:
@@ -159,7 +159,7 @@ class TravelCalculator:
                 break
 
         position = self.last_known_position + (position_delta if self.travel_direction == TravelStatus.DIRECTION_UP else (-position_delta))
-        _LOGGER.info("elapsed_time %s virtual_travel_time %s last_known_position %s reported_position %s", elapsed_time, virtual_travel_time, self.last_known_position, position)
+        _LOGGER.debug("elapsed_time %s virtual_travel_time %s last_known_position %s reported_position %s", elapsed_time, virtual_travel_time, self.last_known_position, position)
         return max(min(position, 100), 0)
 
     def _calculate_travel_time(self, relative_position):
@@ -185,7 +185,7 @@ class TravelCalculator:
             if virtual_position < self.travel_percent_down_nonlinear:
                 percent = min(self.travel_to_position, self.travel_percent_down_nonlinear) - virtual_position
                 speed = self.travel_time_down_nonlinear / self.travel_percent_down_nonlinear
-                _LOGGER.info("Task Up 1 percent %s speed %s", percent, speed)
+                _LOGGER.debug("Task Up 1 percent %s speed %s", percent, speed)
                 tasks.append(TravelTask(time=percent * speed, percent=percent))
                 virtual_position += percent
 
@@ -193,14 +193,14 @@ class TravelCalculator:
                 percent = min(self.travel_to_position, 100 - self.travel_percent_up_nonlinear) - virtual_position
                 speed = (self.travel_time_up - self.travel_time_down_nonlinear - self.travel_time_up_nonlinear) / (
                     100 - self.travel_percent_down_nonlinear - self.travel_percent_up_nonlinear)
-                _LOGGER.info("Task Up 2 percent %s speed %s", percent, speed)
+                _LOGGER.debug("Task Up 2 percent %s speed %s", percent, speed)
                 tasks.append(TravelTask(time=percent * speed, percent=percent))
                 virtual_position += percent
 
             if virtual_position < self.travel_to_position:
                 percent = self.travel_to_position - virtual_position
                 speed = self.travel_time_up_nonlinear / self.travel_percent_up_nonlinear
-                _LOGGER.info("Task Up 3 percent %s speed %s", percent, speed)
+                _LOGGER.debug("Task Up 3 percent %s speed %s", percent, speed)
                 tasks.append(TravelTask(time=percent * speed, percent=percent))
                 virtual_position += percent
 
@@ -208,7 +208,7 @@ class TravelCalculator:
             if self.last_known_position > 100 - self.travel_percent_up_nonlinear:
                 percent = self.last_known_position - max(self.travel_to_position, 100 - self.travel_percent_up_nonlinear)
                 speed = self.travel_time_up_nonlinear / self.travel_percent_up_nonlinear
-                _LOGGER.info("Task Down 1 percent %s speed %s", percent, speed)
+                _LOGGER.debug("Task Down 1 percent %s speed %s", percent, speed)
                 tasks.append(TravelTask(time=percent * speed, percent=percent))
                 virtual_position -= percent
 
@@ -216,14 +216,14 @@ class TravelCalculator:
                 percent = virtual_position - max(self.travel_to_position, self.travel_percent_down_nonlinear)
                 speed = (self.travel_time_down - self.travel_time_down_nonlinear - self.travel_time_up_nonlinear) / (
                     100 - self.travel_percent_down_nonlinear - self.travel_percent_up_nonlinear)
-                _LOGGER.info("Task Down 2 percent %s speed %s", percent, speed)
+                _LOGGER.debug("Task Down 2 percent %s speed %s", percent, speed)
                 tasks.append(TravelTask(time=percent * speed, percent=percent))
                 virtual_position -= percent
 
             if virtual_position > self.travel_to_position:
                 percent = virtual_position - self.travel_to_position
                 speed = self.travel_time_down_nonlinear / self.travel_percent_down_nonlinear
-                _LOGGER.info("Task Down 3 percent %s speed %s", percent, speed)
+                _LOGGER.debug("Task Down 3 percent %s speed %s", percent, speed)
                 tasks.append(TravelTask(time=percent * speed, percent=percent))
                 virtual_position -= percent
 
