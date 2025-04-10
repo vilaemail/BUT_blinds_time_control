@@ -4,8 +4,8 @@ Upgrade your Home Assistant with this custom blinds control integration. It's de
 
 ## Acknowledgment
 
-This is a fork of [Home Assistant Blinds Control Integration]() done by []().
-Fork was based on and inspired by this insightful [community post](https://community.home-assistant.io/t/custom-component-cover-time-based/187654)
+This is a fork of [Home Assistant Blinds Control Integration](https://github.com/MatthewOnTour/BUT_blinds_time_control) done by [MatthewOnTour](https://github.com/MatthewOnTour).
+Original work was based on and inspired by this insightful [community post](https://community.home-assistant.io/t/custom-component-cover-time-based/187654)
 
 ## Fork purpose
 
